@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const b=await chromium.launch({channel:'msedge',headless:true});
+const p=await (await b.newContext({viewport:{width:420,height:900}})).newPage();
+const e=[];p.on('pageerror',x=>e.push(x.message));
+await p.goto('http://localhost:8081/login',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForTimeout(7000);
+await p.locator('input').first().fill('fortimark.demo.member@gmail.com');await p.locator('input').nth(1).fill('DemoMember!2026');
+await p.getByRole('button',{name:'Sign in'}).last().click();await p.waitForTimeout(9000);
+await p.getByRole('tab',{name:'Classes'}).click();await p.waitForTimeout(3500);
+await p.mouse.wheel(0,400);await p.waitForTimeout(1000);
+await p.screenshot({path:'docs/design/review/v-fade-classes.png'});
+console.log(e.length?('ERR '+e.join('|')):'no page errors');
+await b.close();

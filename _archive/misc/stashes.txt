@@ -1,0 +1,4 @@
+﻿stash@{0}: On main: temp-before-applying-old-stash
+stash@{1}: WIP on main: bac98ee Ignore backend virtual environment
+stash@{2}: WIP on main: 8f2bd0a workout tracking and sleep feature
+stash@{3}: WIP on main: ca6a872 sleep feature

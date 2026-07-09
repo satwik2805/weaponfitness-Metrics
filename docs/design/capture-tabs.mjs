@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 420, height: 900 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
+await page.goto('http://localhost:8081', { waitUntil: 'domcontentloaded', timeout: 90000 });
+await page.waitForTimeout(9000);
+await page.screenshot({ path: 'docs/design/05-trainee-home-tabbar.png' });
+console.log(errors.length ? errors.join('\n') : 'no page errors');
+await browser.close();

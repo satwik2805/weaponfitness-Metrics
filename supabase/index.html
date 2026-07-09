@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnatoMuscle | Premium Interactive Muscle Selector</title>
+  <meta name="description" content="An interactive 3D-styled muscle groups selection dashboard with minor muscles mappings, exercise suggestions, and live Supabase synchronization.">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Supabase JS CDN Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* CSS System Variables */
+    :root {
+      --bg-deep: #050814;
+      --bg-surface: rgba(11, 19, 43, 0.45);
+      --bg-surface-solid: #0c1224;
+      --bg-card: rgba(15, 23, 50, 0.65);
+      
+      --color-primary: #6366f1; /* Electric Indigo */
+      --color-primary-glow: rgba(99, 102, 241, 0.35);
+      --color-secondary: #06b6d4; /* Cyber Cyan */
+      --color-secondary-glow: rgba(6, 182, 212, 0.35);
+      
+      --color-accent-green: #10b981; /* Neon Emerald */
+      --color-accent-red: #ef4444; /* Retro Red */
+      --color-accent-yellow: #f59e0b; /* Caution Yellow */
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-thin: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(6, 182, 212, 0.35);
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      color: var(--text-main);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Layout Containers */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid var(--border-thin);
+      background: rgba(5, 8, 20, 0.75);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 80px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 24px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--color-primary-glow);
+    }
+
+    .brand-logo svg {
+      color: white;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+
+    .status-badge.demo {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.2);
+      color: var(--color-accent-yellow);
+    }
+
+    .status-badge.active {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: var(--color-accent-green);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: white;
+      box-shadow: 0 4px 15px var(--color-primary-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(6, 182, 212, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      border-color: var(--border-thin);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-tiny {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-thin);
+      color: var(--text-muted);
+    }
+
+    .btn-tiny:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Main Dashboard Grid */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 380px 1fr 400px;
+      gap: 32px;
+      margin-top: 40px;
+      margin-bottom: 80px;
+      align-items: start;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glassmorphism Panel base */
+    .panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border-thin);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-thin);
+      padding-bottom: 16px;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Visualizer (Middle Column) */
+    .visualizer-card {
+      align-items: center;
+    }
+
+    .visualizer-tabs {
+      display: inline-flex;
+      background: rgba(5, 8, 20, 0.5);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-thin);
+    }
+
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-surface-solid);
+      color: var(--text-main);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-thin);
+    }
+
+    .visualizer-content {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .anatomy-view {
+      position: absolute;
+      width: 320px;
+      height: 500px;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.95);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .anatomy-view.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    /* Anatomical SVG styling */
+    .anatomy-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+    }
+
+    .muscle-path {
+      fill: rgba(99, 102, 241, 0.05);
+      stroke: rgba(255, 255, 255, 0.12);
+      stroke-width: 1.5;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .muscle-path:hover {
+      fill: rgba(6, 182, 212, 0.2);
+      stroke: var(--color-secondary);
+      filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+    }
+
+    .muscle-path.svg-active {
+      fill: rgba(99, 102, 241, 0.35);
+      stroke: var(--color-primary);
+      filter: drop-shadow(0 0 12px var(--color-primary-glow));
+    }
+
+    .body-outline {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.04);
+      stroke-width: 1;
+      stroke-dasharray: 4 4;
+      pointer-events: none;
+    }
+
+    .anatomy-overlay-info {
+      position: absolute;
+      bottom: 0px;
+      background: rgba(5, 8, 20, 0.85);
+      border: 1px solid var(--border-thin);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Control Panel (Left Column) */
+    .controls-wrapper {
+      max-height: 700px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    /* Custom scrollbar for panels */
+    .controls-wrapper::-webkit-scrollbar,
+    .exercise-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .controls-wrapper::-webkit-scrollbar-track,
+    .exercise-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .controls-wrapper::-webkit-scrollbar-thumb,
+    .exercise-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+    }
+    .controls-wrapper::-webkit-scrollbar-thumb:hover,
+    .exercise-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .control-group-card {
+      background: rgba(5, 8, 20, 0.4);
+      border: 1px solid var(--border-thin);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .control-group-card.group-active {
+      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(99, 102, 241, 0.02);
+    }
+
+    .group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .group-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .group-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .region-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .minor-muscle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .minor-muscle-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .minor-muscle-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border-thin);
+    }
+
+    .minor-muscle-item.selected {
+      background: rgba(6, 182, 212, 0.05);
+      border-color: rgba(6, 182, 212, 0.2);
+    }
+
+    /* Custom Checkboxes */
+    .minor-checkbox {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      height: 0;
+      width: 0;
+    }
+
+    .checkbox-custom {
+      height: 18px;
+      width: 18px;
+      border: 2px solid var(--text-muted);
+      border-radius: 5px;
+      flex-shrink: 0;
+      position: relative;
+      margin-top: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .minor-muscle-item:hover .checkbox-custom {
+      border-color: var(--text-main);
+    }
+
+    .minor-checkbox:checked ~ .checkbox-custom {
+      background: var(--color-secondary);
+      border-color: var(--color-secondary);
+    }
+
+    .checkbox-custom::after {
+      content: "";
+      position: absolute;
+      display: none;
+      left: 5px;
+      top: 1px;
+      width: 4px;
+      height: 9px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .minor-checkbox:checked ~ .checkbox-custom::after {
+      display: block;
+    }
+
+    .minor-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .minor-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .minor-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .minor-type-badge {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .minor-type-badge.major {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+    }
+
+    .minor-type-badge.minor {
+      background: rgba(6, 182, 212, 0.15);
+      color: #99f6e4;
+    }
+
+    .minor-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Exercises Recommender (Right Column) */
+    .exercise-list {
+      max-height: 700px;
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .exercise-card {
+      background: rgba(5, 8, 20, 0.4);
+      border: 1px solid var(--border-thin);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .exercise-card.primary-match {
+      border-left: 4px solid var(--color-secondary);
+      background: linear-gradient(90deg, rgba(6, 182, 212, 0.03) 0%, transparent 100%);
+    }
+
+    .exercise-card.secondary-match {
+      border-left: 4px solid var(--color-primary);
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.03) 0%, transparent 100%);
+    }
+
+    .ex-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .ex-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .badge-difficulty {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge-difficulty.beginner {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--color-accent-green);
+    }
+
+    .badge-difficulty.intermediate {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--color-accent-yellow);
+    }
+
+    .badge-difficulty.advanced {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--color-accent-red);
+    }
+
+    .ex-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .ex-details {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      border-top: 1px dashed var(--border-thin);
+      padding-top: 8px;
+    }
+
+    .ex-muscle-tag {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tag-title {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .tag-value {
+      color: var(--text-main);
+    }
+
+    .tag-value.highlight-primary {
+      color: #22d3ee;
+      font-weight: 600;
+    }
+
+    .ex-footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .badge-category {
+      font-size: 9px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      border: 1px solid var(--border-thin);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .badge-equip {
+      font-size: 9px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      border: 1px solid var(--border-thin);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .empty-state svg {
+      opacity: 0.3;
+    }
+
+    /* Modal Styling */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(3, 7, 18, 0.8);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--bg-surface-solid);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 30px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8),
+                  0 0 30px rgba(99, 102, 241, 0.15);
+      position: relative;
+      transform: scale(0.95);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal.visible .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-thin);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+      transition: color 0.2s ease;
+    }
+
+    .close-btn:hover {
+      color: var(--text-main);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-input {
+      background: rgba(5, 8, 20, 0.6);
+      border: 1px solid var(--border-thin);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .form-input:focus {
+      border-color: var(--color-secondary);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
+      outline: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    /* Toast Container */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 9999;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      background: rgba(12, 18, 36, 0.9);
+      border: 1px solid var(--border-thin);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .toast-success {
+      border-left: 3px solid var(--color-accent-green);
+    }
+    .toast-success .toast-dot {
+      background-color: var(--color-accent-green);
+      box-shadow: 0 0 8px var(--color-accent-green);
+    }
+
+    .toast-error {
+      border-left: 3px solid var(--color-accent-red);
+    }
+    .toast-error .toast-dot {
+      background-color: var(--color-accent-red);
+      box-shadow: 0 0 8px var(--color-accent-red);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification Wrapper -->
+  <div id="toast-container"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="container header-wrapper">
+      <a href="#" class="brand">
+        <div class="brand-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.5 6.5h11M6.5 12h11M6.5 17.5h11"/>
+          </svg>
+        </div>
+        AnatoMuscle
+      </a>
+
+      <div class="nav-actions">
+        <span class="status-badge demo" id="connection-status-badge">Demo Mode</span>
+        <button class="btn btn-secondary" id="config-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Configure Supabase
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Dashboard -->
+  <main class="container dashboard">
+    
+    <!-- Left Panel: Muscle Selection Controls -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9M3 20h9M3 10h18M3 5h18M3 15h18"/>
+          </svg>
+          Select Muscles
+        </h2>
+        <span class="region-badge" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc;"><span id="selected-count">0</span> Active</span>
+      </div>
+
+      <div class="controls-wrapper" id="muscle-controls-panel">
+        <!-- Rendered dynamically by JS -->
+        <div class="empty-state">Loading muscle directory...</div>
+      </div>
+
+      <button class="btn btn-secondary" id="clear-all-btn" style="width: 100%;">Clear Selections</button>
+    </section>
+
+    <!-- Middle Panel: Interactive Anatomical Visualizer -->
+    <section class="panel visualizer-card">
+      <div class="panel-header" style="width: 100%;">
+        <h2 class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a5 5 0 1 0 10 10A10 10 0 1 1 12 2z"/>
+          </svg>
+          Anatomy Map
+        </h2>
+        <div class="visualizer-tabs">
+          <button class="tab-btn active" id="tab-front">Front</button>
+          <button class="tab-btn" id="tab-back">Back</button>
+        </div>
+      </div>
+
+      <div class="visualizer-content" id="visualizer-wrapper">
+        
+        <!-- FRONT VIEW SVG -->
+        <div class="anatomy-view visible" id="anatomy-front-view">
+          <svg class="anatomy-svg" viewBox="0 0 300 500">
+            <!-- Stylized body outline -->
+            <path class="body-outline" d="M 150 15 C 100 15, 60 70, 60 120 C 60 170, 40 230, 45 270 C 50 310, 95 350, 95 380 C 95 410, 105 480, 110 490 L 190 490 C 195 480, 205 410, 205 380 C 205 350, 250 310, 255 270 C 260 230, 240 170, 240 120 C 240 70, 200 15, 150 15 Z" />
+            
+            <!-- Head (Decorative) -->
+            <circle cx="150" cy="40" r="16" fill="none" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1.5" />
+            <circle cx="150" cy="40" r="8" fill="rgba(255, 255, 255, 0.02)" />
+            
+            <!-- Neck (Decorative) -->
+            <rect x="144" y="56" width="12" height="14" rx="2" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1.5" />
+
+            <!-- Shoulders -->
+            <path class="muscle-path" data-group="shoulders" d="M 100 75 L 76 88 C 70 100, 68 118, 70 123 L 97 114 Z" title="Shoulders (Deltoids)" />
+            <path class="muscle-path" data-group="shoulders" d="M 200 75 L 224 88 C 230 100, 232 118, 230 123 L 203 114 Z" title="Shoulders (Deltoids)" />
+
+            <!-- Chest -->
+            <path class="muscle-path" data-group="chest" d="M 148 76 L 105 76 L 99 116 L 148 116 Z" title="Chest (Pectorals)" />
+            <path class="muscle-path" data-group="chest" d="M 152 76 L 195 76 L 201 116 L 152 116 Z" title="Chest (Pectorals)" />
+
+            <!-- Arms (Biceps/Forearms) -->
+            <path class="muscle-path" data-group="arms" d="M 70 126 C 63 145, 62 165, 63 178 L 82 178 L 97 122 Z" title="Biceps / Upper Arm" />
+            <path class="muscle-path" data-group="arms" d="M 230 126 C 237 145, 238 165, 237 178 L 218 178 L 203 122 Z" title="Biceps / Upper Arm" />
+            
+            <path class="muscle-path" data-group="arms" d="M 62 182 C 55 205, 52 235, 54 246 L 71 246 L 81 182 Z" title="Forearms" />
+            <path class="muscle-path" data-group="arms" d="M 238 182 C 245 205, 248 235, 246 246 L 229 246 L 219 182 Z" title="Forearms" />
+
+            <!-- Core -->
+            <path class="muscle-path" data-group="core" d="M 122 121 L 178 121 L 173 218 L 127 218 Z" title="Abdominals" />
+            <path class="muscle-path" data-group="core" d="M 120 121 L 102 119 C 104 150, 107 185, 110 218 L 125 218 Z" title="Obliques" />
+            <path class="muscle-path" data-group="core" d="M 180 121 L 198 119 C 196 150, 193 185, 190 218 L 175 218 Z" title="Obliques" />
+
+            <!-- Legs (Quads/Adductors) -->
+            <path class="muscle-path" data-group="legs" d="M 107 224 L 147 224 L 145 352 L 105 342 Z" title="Quadriceps" />
+            <path class="muscle-path" data-group="legs" d="M 193 224 L 153 224 L 155 352 L 195 342 Z" title="Quadriceps" />
+
+            <!-- Shins/Calves -->
+            <path class="muscle-path" data-group="legs" d="M 105 352 L 144 362 L 135 465 L 114 465 Z" title="Tibialis / Shin" />
+            <path class="muscle-path" data-group="legs" d="M 195 352 L 156 362 L 165 465 L 186 465 Z" title="Tibialis / Shin" />
+          </svg>
+        </div>
+
+        <!-- BACK VIEW SVG -->
+        <div class="anatomy-view" id="anatomy-back-view">
+          <svg class="anatomy-svg" viewBox="0 0 300 500">
+            <!-- Stylized body outline -->
+            <path class="body-outline" d="M 150 15 C 100 15, 60 70, 60 120 C 60 170, 40 230, 45 270 C 50 310, 95 350, 95 380 C 95 410, 105 480, 110 490 L 190 490 C 195 480, 205 410, 205 380 C 205 350, 250 310, 255 270 C 260 230, 240 170, 240 120 C 240 70, 200 15, 150 15 Z" />
+            
+            <!-- Head (Decorative) -->
+            <circle cx="150" cy="40" r="16" fill="none" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1.5" />
+            <circle cx="150" cy="40" r="8" fill="rgba(255, 255, 255, 0.02)" />
+
+            <!-- Shoulders (Posterior) -->
+            <path class="muscle-path" data-group="shoulders" d="M 100 75 L 76 88 C 70 100, 68 118, 70 123 L 97 114 Z" />
+            <path class="muscle-path" data-group="shoulders" d="M 200 75 L 224 88 C 230 100, 232 118, 230 123 L 203 114 Z" />
+
+            <!-- Back (Traps, Lats, Lower Back) -->
+            <path class="muscle-path" data-group="back" d="M 150 72 L 115 84 L 110 115 L 150 145 L 190 115 L 185 84 Z" title="Trapezius (Upper Back)" />
+            
+            <path class="muscle-path" data-group="back" d="M 110 118 L 148 147 L 148 208 L 108 208 Z" title="Latissimus Dorsi" />
+            <path class="muscle-path" data-group="back" d="M 190 118 L 152 147 L 152 208 L 192 208 Z" title="Latissimus Dorsi" />
+            
+            <path class="muscle-path" data-group="back" d="M 132 210 L 168 210 L 168 223 L 132 223 Z" title="Lower Back" />
+
+            <!-- Triceps / Forearms -->
+            <path class="muscle-path" data-group="arms" d="M 70 126 C 63 145, 62 165, 63 178 L 82 178 L 97 122 Z" title="Triceps Brachii" />
+            <path class="muscle-path" data-group="arms" d="M 230 126 C 237 145, 238 165, 237 178 L 218 178 L 203 122 Z" title="Triceps Brachii" />
+            
+            <path class="muscle-path" data-group="arms" d="M 62 182 C 55 205, 52 235, 54 246 L 71 246 L 81 182 Z" />
+            <path class="muscle-path" data-group="arms" d="M 238 182 C 245 205, 248 235, 246 246 L 229 246 L 219 182 Z" />
+
+            <!-- Glutes -->
+            <path class="muscle-path" data-group="legs" d="M 107 225 L 149 225 L 149 268 L 105 258 Z" title="Gluteus Maximus" />
+            <path class="muscle-path" data-group="legs" d="M 193 225 L 151 225 L 151 268 L 195 258 Z" title="Gluteus Maximus" />
+
+            <!-- Hamstrings -->
+            <path class="muscle-path" data-group="legs" d="M 105 262 L 148 271 L 146 352 L 105 342 Z" title="Hamstrings" />
+            <path class="muscle-path" data-group="legs" d="M 195 262 L 152 271 L 154 352 L 195 342 Z" title="Hamstrings" />
+
+            <!-- Calves -->
+            <path class="muscle-path" data-group="legs" d="M 105 352 L 144 362 L 135 465 L 114 465 Z" title="Gastrocnemius / Soleus" />
+            <path class="muscle-path" data-group="legs" d="M 195 352 L 156 362 L 165 465 L 186 465 Z" title="Gastrocnemius / Soleus" />
+          </svg>
+        </div>
+
+        <div class="anatomy-overlay-info">
+          Click anatomical zones to toggle selection splits
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Panel: AI Recommended Workouts -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m22 2-7 20-4-9-9-4Z"/>
+            <path d="M22 2 11 13"/>
+          </svg>
+          Recommended Exercises
+        </h2>
+      </div>
+
+      <div class="exercise-list" id="exercise-list">
+        <!-- Rendered dynamically by JS -->
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M8 12h8"></path>
+          </svg>
+          <p>No muscles selected. Choose muscle groups from the anatomical visualizer to get tailored exercise suggestions.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Configuration Modal -->
+  <div class="modal" id="config-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Supabase Credentials</h3>
+        <button class="close-btn" id="close-modal">&times;</button>
+      </div>
+
+      <form id="config-form">
+        <div class="form-group">
+          <label class="form-label" for="supabase-url-input">Project URL</label>
+          <input class="form-input" type="url" id="supabase-url-input" placeholder="https://yourprojectid.supabase.co" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="supabase-key-input">Anon/Public Key</label>
+          <input class="form-input" type="text" id="supabase-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" type="button" id="reset-config-btn">Reset to Demo</button>
+          <button class="btn btn-primary" type="submit">Save & Connect</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrapping main module script -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>

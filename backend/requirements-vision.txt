@@ -1,0 +1,6 @@
+# Optional: food-camera nutrition estimation (app/services/vision_service.py).
+# Heavy — only install where the vision endpoints are actually served.
+ultralytics>=8.2
+opencv-python-headless>=4.9
+numpy>=1.26
+Pillow>=10.3
