@@ -11,13 +11,23 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "SUPABASE_URL": "https://oxpmrpycwcglkzgaopdz.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94cG1ycHljd2NnbGt6Z2FvcGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NjA1NTYsImV4cCI6MjA5ODAzNjU1Nn0.76Z_Ow_ziyzSoZEUP5urNcaxzqgf1mE-PeFjVXr27wQ",
+        "EXPO_PUBLIC_API_URL": "https://weaponfitness-api.onrender.com"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
       },
-      "ios": {}
+      "ios": {},
+      "env": {
+        "SUPABASE_URL": "https://oxpmrpycwcglkzgaopdz.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94cG1ycHljd2NnbGt6Z2FvcGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NjA1NTYsImV4cCI6MjA5ODAzNjU1Nn0.76Z_Ow_ziyzSoZEUP5urNcaxzqgf1mE-PeFjVXr27wQ",
+        "EXPO_PUBLIC_API_URL": "https://weaponfitness-api.onrender.com"
+      }
     }
   },
   "submit": {
