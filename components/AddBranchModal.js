@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { supabase } from "../config/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { Button, Input, Sheet, useToast } from "./ui";
+import { branchService } from "../services/branchService";
 
 export default function AddBranchModal({ visible, onClose, onAdded }) {
   const { space } = useTheme();
@@ -26,39 +27,16 @@ export default function AddBranchModal({ visible, onClose, onAdded }) {
     }
     setLoading(true);
     try {
-      // 1. Get Session
       const { data: { session } } = await supabase.auth.getSession();
       const ownerId = session?.user?.id;
       if (!ownerId) throw new Error("Not authenticated");
 
-      // 2. Call Edge Function (Gateway Pattern)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'add_branch',
-          payload: {
-            branchName,
-            address,
-            contact,
-            ownerId,
-          }
-        },
-        headers: {
-          'x-action-path': '/admin_write' // Enforce rate limit
-        }
+      await branchService.createBranch({
+        branch_name: branchName,
+        address: address || null,
+        contact_number: contact || null,
+        owner_id: ownerId,
       });
-
-      if (funcError) {
-        let msg = "Failed to create branch.";
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) { }
-        }
-        throw new Error(msg);
-      }
-
-      if (funcData?.error) throw new Error(funcData.error);
 
       setLoading(false);
       toast.show("Branch created.", { kind: 'success' });
