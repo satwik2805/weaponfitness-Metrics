@@ -2,6 +2,10 @@ import { api } from "../config/apiClient";
 
 /**
  * Branch API Service
+ *
+ * NOTE: Trailing slashes on collection endpoints ("/branches/") prevent
+ * FastAPI's automatic 307 redirect from "/branches" → "/branches/" which
+ * strips CORS headers and breaks browser requests.
  */
 export const branchService = {
   /**
@@ -15,14 +19,14 @@ export const branchService = {
    * Get all branches
    */
   getAllBranches: async () => {
-    return api.get("/branches");
+    return api.get("/branches/");
   },
 
   /**
    * Create a new branch
    */
   createBranch: async (branchData) => {
-    return api.post("/branches", branchData);
+    return api.post("/branches/", branchData);
   },
 
   /**

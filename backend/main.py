@@ -59,12 +59,17 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="WeaponFitness API", lifespan=lifespan)
 
 # -------------------- CORS --------------------
-# Origins are pinned via env (ALLOWED_ORIGINS). Wildcard+credentials is both
-# invalid per the spec and an open door — never reintroduce it.
+# When ALLOWED_ORIGINS is literally "*", we enable open access but MUST
+# disable credentials (the CORS spec forbids wildcard + credentials and
+# browsers silently block every response). For an explicit origin list,
+# credentials stay on so the frontend can send its Supabase JWT cookie.
+_origins = settings.allowed_origins_list
+_wildcard = _origins == ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
-    allow_credentials=True,
+    allow_origins=["*"] if _wildcard else _origins,
+    allow_credentials=not _wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )
