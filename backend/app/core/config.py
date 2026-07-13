@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Legacy HS256 JWT secret (Supabase dashboard → API → JWT secret).
     # Only needed for projects still issuing HS256 tokens.
     SUPABASE_JWT_SECRET: str = ""
+    # Service-role key for admin actions (e.g. creating auth users).
+    # Supabase dashboard → Settings → API → service_role (secret).
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
     # Escape hatch for local development with no Supabase project at all.
     # NEVER enable in production: every request is treated as an Owner.
     AUTH_DISABLED: bool = False

@@ -3,10 +3,10 @@ import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { supabase } from "../config/supabase";
 import { useTheme } from "../context/ThemeContext";
+import { api } from "../config/apiClient";
 import { Button, Chip, Input, SegmentedControl, Sheet, Text, useToast } from "./ui";
 
-// ROLES selects the edge-function action (add_trainee vs add_trainer); it is
-// NOT the DB role column (the edge function sets that itself).
+// ROLES selects the action (add_trainee vs add_trainer)
 const ROLES = ["trainee", "trainer"];
 // values must match the payment_mode_enum exactly (Cash/Card/UPI)
 const PAYMENT_MODES = [
@@ -80,21 +80,6 @@ export default function RegisterMemberModal({ visible, onClose, onRegistered, br
     setPaymentMode(null);
   };
 
-  // CREATE USER + PROFILE
-  const createAuthUser = async () => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password.trim(),
-    });
-
-    if (error) {
-      toast.show(error.message, { kind: "error" });
-      return null;
-    }
-
-    return data.user;
-  };
-
   // REGISTER TRAINER
   const registerTrainer = async () => {
     if (!email || !password || !fullName) {
@@ -102,54 +87,27 @@ export default function RegisterMemberModal({ visible, onClose, onRegistered, br
       return;
     }
 
-    // CALL EDGE FUNCTION (Gateway Pattern) - Reusing 'add_trainer' action
-    const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-      body: {
-        action: 'add_trainer',
-        payload: {
-          email,
-          password,
-          fullName,
-          phone,
-          experience,
-          branchId: null // or pass if available? 'add_trainer' logic expects it?
-          // Wait, 'add_trainer' implementation required branchId.
-          // In RegisterMemberModal, is branchId prop available? Yes usually.
-          // Let's check props. Yes, branchId is a prop.
-        }
-      },
-      headers: {
-        'x-action-path': '/admin_write' // Enforce rate limit
-      }
-    });
-    // NOTE: If branchId is null/undefined, add_trainer might fail if it enforces it.
-    // The previous client code for registerTrainer didn't insert branch_id into profiles!
-    // But 'add_trainer' edge function DOES insert branch_id.
-    // This might be a behavior change. If branchId is passed to modal, we should use it.
+    setLoading(true);
+    try {
+      await api.post("/register/", {
+        email,
+        password,
+        full_name: fullName,
+        phone,
+        role: "Trainer",
+        branch_id: branchId || null,
+        experience_years: experience ? parseInt(experience) : null,
+        bio: bio || null,
+      });
 
-    if (funcError) {
-      let msg = "Failed to create trainer.";
-      if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-        try {
-          const body = await funcError.context.json();
-          msg = body.error || msg;
-        } catch (e) { }
-      }
-      toast.show(msg, { kind: "error" });
-      setLoading(false);
-      return;
+      toast.show("Trainer account created.", { kind: "success" });
+      onRegistered?.();
+      resetFields();
+      onClose();
+    } catch (err) {
+      toast.show(err.message || "Failed to create trainer.", { kind: "error" });
     }
-
-    if (funcData?.error) {
-      toast.show(funcData.error, { kind: "error" });
-      setLoading(false);
-      return;
-    }
-
-    toast.show("Trainer account created.", { kind: "success" });
-    onRegistered?.();
-    resetFields();
-    onClose();
+    setLoading(false);
   };
 
   // REGISTER TRAINEE
@@ -173,50 +131,66 @@ export default function RegisterMemberModal({ visible, onClose, onRegistered, br
 
     setLoading(true);
 
-    // CALL EDGE FUNCTION (Gateway Pattern) - 'add_trainee'
-    const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-      body: {
-        action: 'add_trainee',
-        payload: {
-          email,
-          password,
-          fullName,
-          phone,
-          trainerId: selectedTrainer,
-          planId: selectedPlan,
-          paymentMode,
-          branchId,
-        }
-      },
-      headers: {
-        'x-action-path': '/signup' // Enforce rate limit
+    try {
+      // 1. Create auth user + profile + trainee row via backend
+      await api.post("/register/", {
+        email,
+        password,
+        full_name: fullName,
+        phone,
+        role: "Trainee",
+        branch_id: branchId || null,
+        trainer_id: selectedTrainer,
+      });
+
+      // 2. Assign plan + payment via Supabase directly (the backend doesn't
+      //    have a combined endpoint for this yet, and the frontend already reads
+      //    plans from Supabase)
+      const { data: { session } } = await supabase.auth.getSession();
+      // Look up the newly created user by email to get their ID
+      const { data: newProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("full_name", fullName)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (newProfile) {
+        const plan = plans.find(p => p.id === selectedPlan);
+        const startDate = new Date().toISOString().split("T")[0];
+        const expiryDate = new Date(
+          Date.now() + (plan?.duration_months || 1) * 30 * 24 * 60 * 60 * 1000
+        ).toISOString().split("T")[0];
+
+        // Create trainee_plan
+        await supabase.from("trainee_plan").insert({
+          trainee_id: newProfile.id,
+          plan_id: selectedPlan,
+          start_date: startDate,
+          expiry_date: expiryDate,
+          active_status: true,
+        });
+
+        // Record payment
+        await supabase.from("payments").insert({
+          profile_id: newProfile.id,
+          amount: plan?.price || 0,
+          payment_mode: paymentMode,
+          payment_status: "Completed",
+          branch_id: branchId,
+        });
       }
-    });
 
-    if (funcError) {
-      let msg = "Failed to register trainee.";
-      if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-        try {
-          const body = await funcError.context.json();
-          msg = body.error || msg;
-        } catch (e) { }
-      }
-      toast.show(msg, { kind: "error" });
-      setLoading(false);
-      return;
+      toast.show("Trainee registered with plan and payment recorded.", { kind: "success" });
+
+      onRegistered?.();
+      resetFields();
+      onClose();
+    } catch (err) {
+      toast.show(err.message || "Failed to register trainee.", { kind: "error" });
     }
-
-    if (funcData?.error) {
-      toast.show(funcData.error, { kind: "error" });
-      setLoading(false);
-      return;
-    }
-
-    toast.show("Trainee registered with plan and payment recorded.", { kind: "success" });
-
-    onRegistered?.();
-    resetFields();
-    onClose();
+    setLoading(false);
   };
 
   const onSubmit = () => {

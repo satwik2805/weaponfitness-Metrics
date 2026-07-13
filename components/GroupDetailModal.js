@@ -65,34 +65,19 @@ export default function GroupDetailModal({ visible, onClose, group }) {
     try {
       setLoading(true);
 
-      // CALL EDGE FUNCTION (Gateway Pattern)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'delete_group',
-          payload: {
-            groupId: group.id
-          }
-        },
-        headers: {
-          'x-action-path': '/admin_write' // Enforce rate limit
-        }
-      });
+      // Delete group members first, then the group itself
+      await supabase
+        .from("trainee_group_members")
+        .delete()
+        .eq("group_id", group.id);
 
-      if (funcError) {
-        let msg = "Failed to delete group.";
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) { }
-        }
-        toast.show(msg, { kind: "error" });
-        setLoading(false);
-        return;
-      }
+      const { error: delErr } = await supabase
+        .from("trainee_groups")
+        .delete()
+        .eq("id", group.id);
 
-      if (funcData?.error) {
-        toast.show(funcData.error, { kind: "error" });
+      if (delErr) {
+        toast.show(delErr.message || "Failed to delete group.", { kind: "error" });
         setLoading(false);
         return;
       }

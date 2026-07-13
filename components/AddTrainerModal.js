@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { supabase } from "../config/supabase";
 import { useTheme } from "../context/ThemeContext";
-import { checkRateLimit } from "../utils/rateLimiter";
-import { profileService, trainerService } from "../services";
+import { api } from "../config/apiClient";
 import { Sheet, Input, Button, Text, Surface, useToast } from "./ui";
 
 // Cryptographically random 12-char temporary password (A-Za-z0-9 + 2 symbols).
@@ -38,41 +36,16 @@ export default function AddTrainerModal({ visible, onClose, branchId, onAdded })
     const tempPassword = generateTempPassword();
 
     try {
-      // Create trainer via Edge Function (creates auth user, profile, and trainer in Supabase)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'add_trainer',
-          payload: {
-            email,
-            password: tempPassword,
-            fullName,
-            phone,
-            experience,
-            branchId
-          }
-        },
-        headers: {
-          'x-action-path': '/admin_write'
-        }
+      await api.post("/register/", {
+        email,
+        password: tempPassword,
+        full_name: fullName,
+        phone,
+        role: "Trainer",
+        branch_id: branchId || null,
+        experience_years: experience ? parseInt(experience) : null,
       });
 
-      if (funcError) {
-        let msg = "Failed to create trainer.";
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) { }
-        }
-        throw new Error(msg);
-      }
-
-      if (funcData?.error) {
-        throw new Error(funcData.error);
-      }
-
-      // Edge function successfully created trainer in Supabase
-      // Backend will read from Supabase when needed
       // Show the generated temp password to the owner (only chance to see it)
       setCreatedCredentials({ email, password: tempPassword });
       onAdded?.(); // refresh dashboard (must NOT close the modal — the one-time password is showing)

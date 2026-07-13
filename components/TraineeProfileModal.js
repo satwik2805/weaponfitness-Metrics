@@ -144,37 +144,13 @@ export default function TraineeProfileModal({
         return;
       }
 
-      // CALL EDGE FUNCTION (Gateway Pattern)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'admin_attendance',
-          payload: {
-            traineeId,
-            branchId
-          }
-        },
-        headers: {
-          'x-action-path': '/admin_write' // Enforce rate limit
-        }
+      const today = new Date().toISOString().split("T")[0];
+
+      await attendanceService.createAttendance({
+        trainee_id: traineeId,
+        attendance_date: today,
+        is_present: true,
       });
-
-      if (funcError) {
-        let msg = "Could not mark attendance";
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) { }
-        }
-        // Handle specific "Already checked in" case gracefully if needed
-        toast.show(msg, { kind: "error" });
-        return;
-      }
-
-      if (funcData?.error) {
-        toast.show(funcData.error, { kind: "error" });
-        return;
-      }
 
       toast.show("Attendance marked.", { kind: "success" });
 
@@ -186,7 +162,7 @@ export default function TraineeProfileModal({
 
     } catch (e) {
       if (__DEV__) console.error("Mark attendance error:", e.message);
-      toast.show("Couldn't mark attendance. Please try again.", { kind: "error" });
+      toast.show(e.message || "Couldn't mark attendance. Please try again.", { kind: "error" });
     }
   };
 

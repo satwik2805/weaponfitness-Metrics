@@ -28,6 +28,7 @@ from app.api.consistency import router as consistency_router
 from app.api.trainer_attendance import router as trainer_attendance_router
 from app.api.group import router as group_router
 from app.api.gym_class import router as gym_class_router
+from app.api.register import router as register_router
 
 from app.services.sleep_scheduler import check_sleep_reminders
 from app.services.workout_reminder_scheduler import check_workout_reminders
@@ -110,6 +111,7 @@ app.include_router(gamification_router, prefix="/api/gamification", tags=["Gamif
 app.include_router(consistency_router, prefix="/consistency", tags=["Consistency"], dependencies=AUTH)
 app.include_router(trainer_attendance_router, prefix="/trainer-attendance", tags=["TrainerAttendance"], dependencies=AUTH)
 app.include_router(gym_class_router, prefix="/classes", tags=["Classes"], dependencies=AUTH)
+app.include_router(register_router, prefix="/register", tags=["Registration"], dependencies=AUTH)
 
 
 # -------------------- Health --------------------

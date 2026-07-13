@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View } from "react-native";
-import { supabase } from "../config/supabase";
 import { useTheme } from "../context/ThemeContext";
+import { api } from "../config/apiClient";
 import { Button, Input, Sheet, useToast } from "./ui";
 
 export default function AddReceptionistModal({ visible, onClose, branchId, onAdded }) {
@@ -35,35 +35,14 @@ export default function AddReceptionistModal({ visible, onClose, branchId, onAdd
     setLoading(true);
 
     try {
-      // CALL EDGE FUNCTION (Gateway Pattern)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'add_receptionist',
-          payload: {
-            email,
-            password,
-            fullName,
-            phone,
-            branchId
-          }
-        },
-        headers: {
-          'x-action-path': '/admin_write' // Enforce rate limit
-        }
+      await api.post("/register/", {
+        email,
+        password,
+        full_name: fullName,
+        phone,
+        role: "Receptionist",
+        branch_id: branchId,
       });
-
-      if (funcError) {
-        let msg = "Failed to create receptionist.";
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) { }
-        }
-        throw new Error(msg);
-      }
-
-      if (funcData?.error) throw new Error(funcData.error);
 
       setLoading(false);
       toast.show("Receptionist created.", { kind: 'success' });

@@ -100,34 +100,18 @@ export default function ManagePlansModal({ visible, onClose, branchId }) {
         description: desc,
       };
 
-      const mode = view === 'add' ? 'create' : 'update';
-
-      // CALL EDGE FUNCTION (Gateway Pattern)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-        body: {
-          action: 'manage_plans',
-          payload: {
-            mode,
-            planData: payloadData,
-            planId: formId,
-          },
-        },
-        headers: {
-          'x-action-path': '/admin_write', // Enforce rate limit
-        },
-      });
-
-      if (funcError) {
-        let msg = 'Failed to save plan.';
-        if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-          try {
-            const body = await funcError.context.json();
-            msg = body.error || msg;
-          } catch (e) {}
-        }
-        throw new Error(msg);
+      if (view === 'add') {
+        const { error: insertErr } = await supabase
+          .from('membership_plans')
+          .insert(payloadData);
+        if (insertErr) throw new Error(insertErr.message);
+      } else {
+        const { error: updateErr } = await supabase
+          .from('membership_plans')
+          .update(payloadData)
+          .eq('id', formId);
+        if (updateErr) throw new Error(updateErr.message);
       }
-      if (funcData?.error) throw new Error(funcData.error);
 
       await loadPlans();
       setView('list');
@@ -149,31 +133,13 @@ export default function ManagePlansModal({ visible, onClose, branchId }) {
     if (!ok) return;
 
     setLoading(true);
-    // CALL EDGE FUNCTION (Gateway Pattern)
-    const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-      body: {
-        action: 'manage_plans',
-        payload: {
-          mode: 'delete',
-          planId: id,
-        },
-      },
-      headers: {
-        'x-action-path': '/admin_write', // Enforce rate limit
-      },
-    });
+    const { error: delErr } = await supabase
+      .from('membership_plans')
+      .delete()
+      .eq('id', id);
 
-    if (funcError) {
-      let msg = 'Failed to delete plan.';
-      if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-        try {
-          const body = await funcError.context.json();
-          msg = body.error || msg;
-        } catch (e) {}
-      }
-      toast.show(msg, { kind: 'error' });
-    } else if (funcData?.error) {
-      toast.show(funcData.error, { kind: 'error' });
+    if (delErr) {
+      toast.show(delErr.message || 'Failed to delete plan.', { kind: 'error' });
     } else {
       loadPlans();
     }

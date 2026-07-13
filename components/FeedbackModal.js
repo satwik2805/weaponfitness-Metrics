@@ -32,39 +32,33 @@ export default function FeedbackModal({ visible, onClose, trainerInfo }) {
       return;
     }
 
-    // CALL EDGE FUNCTION (Gateway Pattern)
-    const { data: funcData, error: funcError } = await supabase.functions.invoke('rate-limit-demo', {
-      body: {
-        action: 'submit_feedback',
-        payload: {
-          traineeId,
-          trainerId: trainerInfo.id,
-          rating,
-          comment,
-        },
-      },
-      headers: {
-        'x-action-path': '/feedback', // Enforce rate limit
-      },
+    // Insert feedback directly via Supabase
+    const { error: insertError } = await supabase.from('feedback').insert({
+      trainee_id: traineeId,
+      trainer_id: trainerInfo.id,
+      rating,
+      comment,
     });
 
     setLoading(false);
 
-    if (funcError) {
-      let msg = 'Failed to submit feedback.';
-      if (funcError && funcError.context && typeof funcError.context.json === 'function') {
-        try {
-          const body = await funcError.context.json();
-          msg = body.error || msg;
-        } catch (e) {}
-      }
-      toast.show(msg, { kind: 'error' });
+    if (insertError) {
+      toast.show(insertError.message || 'Failed to submit feedback.', { kind: 'error' });
       return;
     }
 
-    if (funcData?.error) {
-      toast.show(funcData.error, { kind: 'error' });
-      return;
+    // Update trainer average rating
+    const { data: allFeedback } = await supabase
+      .from('feedback')
+      .select('rating')
+      .eq('trainer_id', trainerInfo.id);
+
+    if (allFeedback && allFeedback.length > 0) {
+      const avg = allFeedback.reduce((sum, f) => sum + f.rating, 0) / allFeedback.length;
+      await supabase
+        .from('trainers')
+        .update({ rating_avg: Math.round(avg * 100) / 100 })
+        .eq('id', trainerInfo.id);
     }
 
     toast.show('Thanks! Your feedback has been submitted.', { kind: 'success' });
